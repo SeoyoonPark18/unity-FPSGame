@@ -14,16 +14,23 @@ public class PlayerMoving : MonoBehaviour
     public int playerHp = 100; //플레이어 체력 변수
     public int maxHp; //최대 체력
     public Slider hpSlider; //체력 슬라이더 변수
-
+    public GameObject bloodEffect; //블러드 효과 이미지
+    public GameObject gameOption; // restart or quit
 
     void Start()
     {
         cc = GetComponent<CharacterController>();
         maxHp = playerHp;
+        bloodEffect.SetActive(false);
     }
 
     void Update()
     {
+        if(GameManager2.gm.gState != GameManager2.GameState.Go) //Go 상태에서만 조작 가능
+        {
+            return;
+        }
+
         float h = Input.GetAxis("Horizontal"); //키보드 입력
         float v= Input.GetAxis("Vertical");
         Vector3 dir = new Vector3(h, 0, v); //방향 설정
@@ -57,7 +64,20 @@ public class PlayerMoving : MonoBehaviour
         if(playerHp < 0)
         {
             playerHp = 0; //체력이 음수라면 0으로 초기화
+            gameOption.SetActive(true);
+        }
+        else //체력이 양수일 때
+        {
+            StartCoroutine(PlayBloodEffect()); //피격 효과 출력
         }
         Debug.Log("HP: " + playerHp);
+    }
+
+    //피격 효과 코루틴 함수
+    IEnumerator PlayBloodEffect()
+    {
+        bloodEffect.SetActive(true); //효과 활성화
+        yield return new WaitForSeconds(0.3f); //3초간 대기
+        bloodEffect.SetActive(false); //비활성화
     }
 }

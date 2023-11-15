@@ -14,6 +14,13 @@ public class CamRotate : MonoBehaviour
 
     void Update()
     {
+        if (GameManager2.gm.gState != GameManager2.GameState.Go) //Go 상태에서만 조작 가능
+        {
+            return;
+        }
+
+        Cursor.lockState = CursorLockMode.Confined; // 게임화면 밖으로 마우스 커서 나가지 못하게 (플레이 끌때는 컨트롤P)
+
         //마우스 입력
         float mouse_X = Input.GetAxis("Mouse X");
         float mouse_Y = Input.GetAxis("Mouse Y");

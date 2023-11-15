@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -25,11 +26,13 @@ public class EnemyFSM : MonoBehaviour
     public float attackDelayTime = 2f; //공격 딜레이 시간
     public int attackPower = 10; //적 공격력
     Vector3 originPos; //초기 위치 저장
+    Quaternion originRot; //초기 회전값 저장
     public float moveDistance = 20f; //초기위치로부터 이동 가능 범위
     public int enemyHp = 30; //적 체력
     public int maxHp;
     public Slider hpSlider;
-
+    Animator anim; //애니메이터 변수
+    public GameObject gameOption; // restart/quit
 
     void Start()
     {
@@ -37,7 +40,9 @@ public class EnemyFSM : MonoBehaviour
         player = GameObject.Find("Player").transform; //플레이어 트랜스폼 할당
         m_State = EnemyState.Idle; //최초의 적 상태를 '대기'로 설정
         originPos = transform.position; //적 초기 위치 저장
+        originRot = transform.rotation; //적 초기 회전값 저장
         maxHp = enemyHp;
+        anim = transform.GetComponentInChildren<Animator>(); //자식 오브젝트의 애니메이터 컴포넌트 할당
     }
 
     void Update()
@@ -57,12 +62,6 @@ public class EnemyFSM : MonoBehaviour
             case EnemyState.Return:
                 Return();
                 break;
-            case EnemyState.Damaged:
-                Damaged();
-                break;
-            case EnemyState.Die:
-                Die();
-                break;
         }
 
         hpSlider.value = (float)enemyHp / (float)maxHp; //UI로 적 Hp 화면에 표시
@@ -75,6 +74,7 @@ public class EnemyFSM : MonoBehaviour
         {
             m_State = EnemyState.Move;
             Debug.Log("Idle -> Move");
+            anim.SetTrigger("IdleToMove"); //이동 애니메이션으로 전환
         }
     }
     void Move()
@@ -90,12 +90,14 @@ public class EnemyFSM : MonoBehaviour
         {
             Vector3 dir = (player.position - transform.position).normalized; //이동 방향 (적이 플레이어에게 가는 방향 = 플레이어 위치- 적 위치)
             cc.Move(dir * moveSpeed * Time.deltaTime); //플레이어에게 이동 (방향*속도*시간)
+            transform.forward = dir; //플레이어를 향해 방향 전환
         }
         else //만약 플레이어와 적의 거리가 '공격 범위'보다 작다면, ((Attack 전환))
         {
             m_State = EnemyState.Attack;
             Debug.Log("Move -> Attack");
             currentTime = attackDelayTime; //누적시간을 공격 딜레이 시간만큼 미리 진행
+            anim.SetTrigger("MoveToAttackDelay"); //공격 대기 애니메이션 실행
         }
     }
 
@@ -114,8 +116,8 @@ public class EnemyFSM : MonoBehaviour
 
                 PlayerMoving pmObject = GameObject.Find("Player").GetComponent<PlayerMoving>(); 
                 pmObject.DamageAction(attackPower); //플레이어의 PlayerMoving 스크립트의 DamageAction 호출
-
                 currentTime = 0;
+                anim.SetTrigger("StartAttack"); //공격 애니메이션 실행
             }
         }
         else //만약 플레이어와 적의 거리가 '공격 범위'보다 크다면, ((Move로 전환))
@@ -123,9 +125,10 @@ public class EnemyFSM : MonoBehaviour
             m_State = EnemyState.Move;
             Debug.Log("Attack -> Move");
             currentTime = 0;
+            anim.SetTrigger("AttackToMove"); //이동 애니메이션 실행
         }
     }
-
+    
     void Return()
     {
         //만약 초기 위치에서의 거리가 0.1보다 크다면 계속 초기 위치 쪽으로 이동
@@ -134,12 +137,16 @@ public class EnemyFSM : MonoBehaviour
             Vector3 dir = (originPos - transform.position).normalized; //방향
             //'normalized'는 벡터의 정규화. 사용 이유: 모든 방향의 벡터 길이를 1로 만들어, 방향에 따른 이동 속도를 동일하게 해줌.
             cc.Move(dir * moveSpeed * Time.deltaTime); //이동
+            transform.forward = dir; //복귀 지점으로 방향 전환
         }
         else //그렇지 않다면 적 위치를 초기 위치로 조정, ((Idle로 전환))
         {
             transform.position = originPos;
+            transform.rotation = originRot;
+
             m_State = EnemyState.Idle;
             Debug.Log("Return -> Idle");
+            anim.SetTrigger("MoveToIdle"); //대기 애니메이션으로 전환
         }
     }
 
@@ -174,19 +181,23 @@ public class EnemyFSM : MonoBehaviour
         {
             m_State=EnemyState.Die;
             Debug.Log("죽음");
+            anim.SetTrigger("Die"); //죽음 애니메이션 실행
             Die();
         }        
     }
 
     IEnumerator DieProcess()
     {
-        cc.enabled = false; //캐릭터 컨트롤러 비활성화 (enabled가 컴포넌트용)
-        yield return new WaitForSeconds(2f); //2초 대기
+        cc.enabled = false;
+        yield return new WaitForSeconds(6f); //피격 모션만큼 기다림
+        Debug.Log("적 제거");
         Destroy(gameObject); //적 제거
-    }  
+        gameOption.SetActive(true); //지금은 적이 1명이기 때문에, 죽을 시 옵션 창 띄움
+
+    }
     void Die()
     {
         StopAllCoroutines(); //지금 진행 중인 코루틴 중지
-        StartCoroutine (DieProcess()); //죽음 코루틴 실행
+        StartCoroutine(DieProcess()); //죽음 코루틴 실행
     }
 }
