@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditorInternal;
+//using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -155,6 +155,7 @@ public class EnemyFSM : MonoBehaviour
     {
         yield return new WaitForSeconds(0.5f); //피격 모션만큼 기다림
         m_State = EnemyState.Move; //이동 상태 전환
+        anim.SetTrigger("IdleToMove");
 
     }
     void Damaged()
